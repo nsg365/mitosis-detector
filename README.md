@@ -2,7 +2,7 @@
 
 **A two-stage deep learning pipeline for mitotic figure detection and localization.**
 
-## 📋 Overview
+##  Overview
 
 This project implements a two-stage system for automated detection of mitotic figures in histopathology images using the TUPAC16 dataset.
 
@@ -11,14 +11,14 @@ This project implements a two-stage system for automated detection of mitotic fi
 | Configuration | F1 Score | Status |
 |---|---|---|
 | Stage 1 (Binary) | 0.8894 | Screening |
-| **Stage 2 (Detection)** | **0.7742** | ✅ **OPTIMAL** |
+| **Stage 2 (Detection)** | **0.7742** |  **OPTIMAL** |
 | Stage 1+2 Pipeline | 0.5806 | Not recommended |
 
-### ⚠️ Critical Finding
+###  Critical Finding
 
 **63% F1 degradation on unseen scanner/stain** reveals severe domain shift requiring multi-center validation.
 
-## 🚀 Quick Start
+##  Quick Start
 
 ```bash
 # Setup
@@ -35,7 +35,7 @@ python src/evaluate.py --checkpoint checkpoints/stage2_best.pth --data_dir data/
 python gradio_demo.py  # http://localhost:7860
 ```
 
-## 📂 Project Structure
+##  Project Structure
 
 ```
 .
@@ -56,40 +56,51 @@ python gradio_demo.py  # http://localhost:7860
 └── README.md
 ```
 
-## 🔍 Key Findings
+##  Key Findings
 
 1. **Direct Detection Outperforms Cascade**
-   - Stage 2 alone: F1=0.7742 ✅
-   - Two-stage pipeline: F1=0.5806 ❌
+   - Stage 2 alone: F1=0.7742 
+   - Two-stage pipeline: F1=0.5806 
    - Reason: Filtering removes difficult mitosis cases
 
 2. **Domain Shift is Severe**
    - Slides 65, 66, 63: F1 = 1.0000 (perfect)
-   - Slide 34: F1 = 0.2857 ❌ (different scanner/stain)
+   - Slide 34: F1 = 0.2857  (different scanner/stain)
    - Gap: 63% F1 degradation across centers
 
 3. **Error Analysis**
    - False Positives: 3 crops (20% rate)
    - False Negatives: 4 crops (25% rate)
+   - ** Caveat:** FP/FN classifications are based on comparison to TUPAC16 ground truth annotations. The galleries (`outputs/false_positive_gallery/`, `outputs/false_negative_gallery/`) are qualitatively useful for error inspection, but **independent verification by a board-certified pathologist is recommended** to confirm classifications, as ground truth annotations may contain inter-observer variability.
 
-## 📊 Architecture Details
+##  Architecture Details
 
-### Stage 1: Binary Classifier
-- **Model:** EfficientNet-B3
+### Stage 1: Binary Classifier - Mitosis Screening
+This module provides the binary classifier for the first stage of the 
+mitosis detection pipeline. It filters patches to identify those likely
+to contain mitotic figures.
+- **Model:** EfficientNet-B3 or even ResNet50 can be used with 2-class output(mitosis oe non-mitosis(bg patch))
 - **Input:** 64×64 RGB patch
+- **output:** Binary probability (contains mitosis vs. background)
 - **Loss:** Focal Loss
 - **Performance:** F1=0.8894 (Epoch 8)
 
-### Stage 2: Object Detector
-- **Model:** Faster R-CNN ResNet50-FPN
+### Stage 2: Object Detector - Mitosis Localization
+This module provides the object detector for the second stage of the 
+mitosis detection pipeline. It localizes and classifies mitotic figures
+within patches identified by Stage 1.
+
+- **Model:** Faster R-CNN with ResNet50-FPN backbone
 - **Input:** 512×512 RGB patch
+- **output:** Bounding boxes + confidence scores
 - **Anchors:** Custom [8, 16, 32, 64, 128]px
 - **Performance:** mAP@0.5=0.7598 (Epoch 65)
 
-## 🏥 Deployment Status
 
-- ✅ **Research-ready:** Competitive F1, modular design
-- ❌ **NOT clinical-ready:** 63% cross-center gap, needs multi-center validation
+##  Deployment Status
+
+-  **Research-ready:** Competitive F1, modular design
+-  **NOT clinical-ready:** 63% cross-center gap, needs multi-center validation
 
 ### Deployment Roadmap
 
@@ -100,7 +111,7 @@ python gradio_demo.py  # http://localhost:7860
 | 3 | Multi-center training | 2-4 weeks |
 | 4 | Domain adaptation (if needed) | 4-8 weeks |
 
-## 📚 References
+##  References
 
 Key papers:
 
@@ -120,7 +131,7 @@ Key papers:
 }
 ```
 
-## 📄 License
+##  License
 
 MIT License
 
@@ -137,6 +148,6 @@ MIT License
 
 ---
 
-**Status:** Course Project Complete ✅  
+**Status:** Course Project Complete   
 **Last Updated:** March 21, 2026  
 **Full Report:** See REPORT.tex

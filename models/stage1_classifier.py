@@ -1,31 +1,9 @@
-"""
-Stage 1 Binary Classifier - Mitosis Screening
-
-This module provides the binary classifier for the first stage of the 
-mitosis detection pipeline. It filters patches to identify those likely
-to contain mitotic figures.
-
-Architecture: ResNet50 or EfficientNet-B3 with 2-class output
-Input: 64×64 RGB patch
-Output: Binary probability (contains mitosis vs. background)
-Loss: Focal Loss for class imbalance
-Optimization: AdamW + Cosine Annealing
-"""
-
 import torch
 import torch.nn as nn
 import torchvision.models as models
 
 
 class Stage1Classifier(nn.Module):
-    """
-    Binary classifier for mitosis screening.
-    
-    Args:
-        backbone (str): 'resnet50' or 'efficientnet_b3'
-        pretrained (bool): Load ImageNet weights
-        num_classes (int): Output classes (default: 2)
-    """
     
     def __init__(self, backbone='efficientnet_b3', pretrained=True, num_classes=2):
         super().__init__()

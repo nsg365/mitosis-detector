@@ -1,14 +1,11 @@
-"""
-Configuration settings for Stage 1 and Stage 2 training.
-"""
-
+#Configuration settings for Stage 1 and Stage 2 training.
 from dataclasses import dataclass
 from typing import Tuple
 
 
 @dataclass
 class Stage1Config:
-    """Configuration for Stage 1 Binary Classifier."""
+    #Configuration for Stage 1 Binary Classifier.
     
     # Data
     patch_size: int = 64
@@ -45,7 +42,7 @@ class Stage1Config:
 
 @dataclass
 class Stage2Config:
-    """Configuration for Stage 2 Object Detector."""
+    #Configuration for Stage 2 Object Detector.
     
     # Data
     patch_size: int = 512
@@ -85,7 +82,7 @@ class Stage2Config:
 
 @dataclass
 class PipelineConfig:
-    """Configuration for end-to-end pipeline."""
+    #Configuration for end-to-end pipeline.
     
     # Stage 1 threshold
     stage1_threshold: float = 0.5087

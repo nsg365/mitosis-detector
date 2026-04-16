@@ -1,10 +1,8 @@
 """
-evaluate.py
-───────────
-End-to-end evaluation on the held-out TEST set.
+End-to-end evaluation on the held-out test set.
 
 Run this only once — after all hyperparameter decisions are frozen.
-Produces the numbers that go in your report's Results section:
+Produces the numbers that go in the report's Results section:
   - Per-stage metrics (Stage 1 precision/recall, Stage 2 mAP@0.5)
   - End-to-end F1 at the slide level
   - FROC curve
@@ -41,15 +39,10 @@ from stage2_detector   import (build_detector, MitosisDetectionDataset,
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# ── Stage 1 test evaluation ───────────────────────────────────────────────────
 
 def evaluate_stage1(s1_ckpt: str, data_dir: Path,
                      threshold: float = 0.30) -> dict:
-    """
-    Evaluate the Stage 1 classifier on the test split.
-    Returns a dict of metrics.
-    """
-    ckpt  = torch.load(s1_ckpt, map_location=DEVICE)
+    ckpt  = torch.load(s1_ckpt, map_location=DEVICE, weights_only=False)
     model = build_classifier(ckpt["backbone"])
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
@@ -87,14 +80,9 @@ def evaluate_stage1(s1_ckpt: str, data_dir: Path,
     return metrics
 
 
-# ── Stage 2 test evaluation ───────────────────────────────────────────────────
-
 def evaluate_stage2(s2_ckpt: str, data_dir: Path, out_dir: Path) -> dict:
-    """
-    Evaluate the Stage 2 detector on the test split.
-    Returns mAP@0.5 and saves FROC curve.
-    """
-    ckpt  = torch.load(s2_ckpt, map_location=DEVICE)
+    #Returns mAP@0.5 and saves FROC curve.
+    ckpt  = torch.load(s2_ckpt, map_location=DEVICE, weights_only=False)
     model = build_detector()
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
@@ -112,8 +100,6 @@ def evaluate_stage2(s2_ckpt: str, data_dir: Path, out_dir: Path) -> dict:
     return metrics
 
 
-# ── Ablation table ────────────────────────────────────────────────────────────
-
 def run_ablation(s1_ckpt: str, s2_ckpt: str,
                   data_dir: Path, out_dir: Path) -> None:
     """
@@ -129,7 +115,7 @@ def run_ablation(s1_ckpt: str, s2_ckpt: str,
 
     This table is the core experimental result of your report.
     """
-    ckpt_s2  = torch.load(s2_ckpt, map_location=DEVICE)
+    ckpt_s2  = torch.load(s2_ckpt, map_location=DEVICE, weights_only=False)
     s2_model = build_detector()
     s2_model.load_state_dict(ckpt_s2["state_dict"])
     s2_model.eval()
@@ -137,7 +123,7 @@ def run_ablation(s1_ckpt: str, s2_ckpt: str,
     test_ds  = MitosisDetectionDataset(data_dir / "stage2" / "test", augment=False)
     test_ldr = DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
-    ckpt_s1  = torch.load(s1_ckpt, map_location=DEVICE)
+    ckpt_s1  = torch.load(s1_ckpt, map_location=DEVICE, weights_only=False)
     s1_model = build_classifier(ckpt_s1["backbone"])
     s1_model.load_state_dict(ckpt_s1["state_dict"])
     s1_model.eval()
@@ -196,18 +182,11 @@ def run_ablation(s1_ckpt: str, s2_ckpt: str,
     print(f"Ablation table saved → {csv_path}")
 
 
-# ── Cross-center generalisation ───────────────────────────────────────────────
-
 def cross_center_analysis(s1_ckpt: str, split_csv: str,
                             data_dir: Path) -> None:
     """
     TUPAC16 contains slides from 3 medical centers (scanners).
     This function measures whether Stage 1 performance degrades on unseen scanners.
-
-    Assumption: the split CSV contains a 'center' column (1, 2, or 3).
-    If your CSV doesn't have this, you can add it manually from the TUPAC16 metadata.
-
-    Prints per-center recall, which is the key cross-center result in your report.
     """
     # Read split CSV and check for center column
     rows = []
@@ -235,8 +214,6 @@ def cross_center_analysis(s1_ckpt: str, split_csv: str,
               f"manual evaluation required (run Stage 1 on per-center test set)")
     print("  Tip: retrain with center-stratified splits for a proper domain shift study.")
 
-
-# ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="End-to-end evaluation")

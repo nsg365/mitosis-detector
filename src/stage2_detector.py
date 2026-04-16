@@ -1,24 +1,20 @@
 """
 stage2_detector.py
-──────────────────
 Trains and evaluates the Stage 2 object detector:
-  input  : 512×512 RGB patch flagged as suspicious by Stage 1
+  input  : 512x512 RGB patch flagged as suspicious by Stage 1
   output : bounding boxes around individual mitotic figures
 
 Architecture
-------------
 torchvision Faster R-CNN with a ResNet50-FPN backbone pretrained on COCO.
 We replace the box predictor head with a 2-class version (background + mitosis)
 and tune the anchor generator for the small size of mitotic figures (~20–30px).
 
 Label format (from preprocess.py)
-----------------------------------
 Each .txt label file has one line per box:
     x_min  y_min  x_max  y_max  class_id
 All in absolute pixel coordinates (not normalised). class_id = 1 for mitosis.
 
 Usage
------
   # Train
   python stage2_detector.py --mode train \
       --data_dir data/processed/stage2 \
@@ -46,31 +42,15 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 
-# ── Constants ──────────────────────────────────────────────────────────────────
-
 DEVICE      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-NUM_CLASSES = 2          # 0 = background, 1 = mitosis
-IOU_THRESH  = 0.5        # IoU threshold for a detection to count as a true positive
+NUM_CLASSES = 2
+IOU_THRESH  = 0.5
 
-# Anchor sizes tuned for mitotic figures (~20–30px inside a 512×512 patch).
-# Default Faster R-CNN anchors are designed for natural images and are too large.
 ANCHOR_SIZES   = ((8,), (16,), (32,), (64,), (128,))
 ANCHOR_RATIOS  = ((0.5, 1.0, 2.0),) * 5
 
 
-# ── Dataset ────────────────────────────────────────────────────────────────────
-
 class MitosisDetectionDataset(Dataset):
-    """
-    Reads 512×512 patch images and their bounding-box label files.
-
-    Directory layout (created by preprocess.py):
-        root/
-          images/   *.png
-          labels/   *.txt   (matching stems)
-
-    Each .txt has lines:  x_min  y_min  x_max  y_max  class_id
-    """
 
     def __init__(self, root: str, augment: bool = False):
         self.img_dir  = Path(root) / "images"
@@ -88,11 +68,10 @@ class MitosisDetectionDataset(Dataset):
     def __getitem__(self, idx: int):
         stem = self.stems[idx]
 
-        # Load image as float tensor in [0, 1]
         img   = Image.open(self.img_dir / f"{stem}.png").convert("RGB")
-        img_t = TF.to_tensor(img)           # (3, H, W), float32
+        img_t = TF.to_tensor(img)
 
-        # Load boxes and labels
+
         lbl_path = self.lbl_dir / f"{stem}.txt"
         boxes, labels = [], []
         if lbl_path.exists():
@@ -103,7 +82,7 @@ class MitosisDetectionDataset(Dataset):
                         continue
                     x1, y1, x2, y2 = map(float, parts[:4])
                     cls = int(parts[4])
-                    if x2 > x1 and y2 > y1:    # skip degenerate boxes
+                    if x2 > x1 and y2 > y1:
                         boxes.append([x1, y1, x2, y2])
                         labels.append(cls)
 
@@ -111,7 +90,6 @@ class MitosisDetectionDataset(Dataset):
             boxes_t  = torch.tensor(boxes,  dtype=torch.float32)
             labels_t = torch.tensor(labels, dtype=torch.int64)
         else:
-            # Faster R-CNN requires tensors even for images with no objects
             boxes_t  = torch.zeros((0, 4), dtype=torch.float32)
             labels_t = torch.zeros((0,),   dtype=torch.int64)
 
@@ -121,7 +99,6 @@ class MitosisDetectionDataset(Dataset):
             "image_id":  torch.tensor([idx]),
         }
 
-        # Basic augmentation: random horizontal/vertical flip
         if self.augment:
             if torch.rand(1) > 0.5:
                 img_t, target = _hflip(img_t, target)
@@ -159,41 +136,26 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-# ── Model factory ──────────────────────────────────────────────────────────────
-
 def build_detector() -> torch.nn.Module:
-    """
-    Build a Faster R-CNN detector with:
-      - ResNet50-FPN backbone (pretrained on COCO)
-      - Custom anchor sizes for small mitotic figures
-      - 2-class prediction head (background + mitosis)
-    """
-    # Custom anchor generator — smaller anchors than the COCO defaults
     anchor_generator = AnchorGenerator(
         sizes=ANCHOR_SIZES,
         aspect_ratios=ANCHOR_RATIOS,
     )
 
-    # Load COCO-pretrained backbone and RPN
     model = det_models.fasterrcnn_resnet50_fpn(
         weights=det_models.FasterRCNN_ResNet50_FPN_Weights.COCO_V1,
         rpn_anchor_generator=anchor_generator,
-        # Lower RPN thresholds to improve small-object recall
         rpn_fg_iou_thresh=0.5,
         rpn_bg_iou_thresh=0.3,
         rpn_nms_thresh=0.6,
-        box_nms_thresh=0.3,         # aggressive NMS since mitoses rarely overlap
-        box_score_thresh=0.3,       # low initial threshold — tune at eval time
+        box_nms_thresh=0.3,
+        box_score_thresh=0.3,
     )
-
-    # Replace the 91-class COCO head with a 2-class head
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, NUM_CLASSES)
 
     return model.to(DEVICE)
 
-
-# ── Training loop ──────────────────────────────────────────────────────────────
 
 def train(args: argparse.Namespace) -> None:
     data_dir = Path(args.data_dir)
@@ -220,7 +182,6 @@ def train(args: argparse.Namespace) -> None:
     history      = {"train_loss": [], "val_map": []}
 
     for epoch in range(1, args.epochs + 1):
-        # ── Train ──
         model.train()
         epoch_loss = 0.0
         for imgs, targets in train_loader:
@@ -228,7 +189,6 @@ def train(args: argparse.Namespace) -> None:
             targets = [{k: v.to(DEVICE) for k, v in t.items()} for t in targets]
 
             loss_dict = model(imgs, targets)
-            # Faster R-CNN returns a dict of individual losses
             loss = sum(loss_dict.values())
 
             optimizer.zero_grad()
@@ -240,7 +200,6 @@ def train(args: argparse.Namespace) -> None:
         scheduler.step()
         avg_loss = epoch_loss / len(train_loader)
 
-        # ── Validate (compute mAP@0.5) ──
         val_map = compute_map(model, val_loader)
         history["train_loss"].append(avg_loss)
         history["val_map"].append(val_map)
@@ -263,21 +222,9 @@ def train(args: argparse.Namespace) -> None:
     print(f"\nTraining complete. Best val mAP@0.5 = {best_val_map:.4f}")
 
 
-# ── mAP computation ────────────────────────────────────────────────────────────
-
 def compute_map(model: torch.nn.Module,
                 loader: DataLoader,
                 iou_threshold: float = IOU_THRESH) -> float:
-    """
-    Compute mean Average Precision at IoU = iou_threshold (mAP@0.5).
-
-    This is a simplified single-class AP computation.
-    For a full multi-class COCO-style mAP, use torchmetrics.detection.MeanAveragePrecision.
-
-    Returns
-    -------
-    float : AP value in [0, 1]
-    """
     model.eval()
     all_scores, all_tp, all_fp = [], [], []
     n_gt_total = 0
@@ -285,7 +232,7 @@ def compute_map(model: torch.nn.Module,
     with torch.no_grad():
         for imgs, targets in loader:
             imgs = [img.to(DEVICE) for img in imgs]
-            preds = model(imgs)         # list of {boxes, labels, scores}
+            preds = model(imgs)
 
             for pred, target in zip(preds, targets):
                 gt_boxes   = target["boxes"].numpy()
@@ -293,7 +240,6 @@ def compute_map(model: torch.nn.Module,
                 scores     = pred["scores"].cpu().numpy()
                 pred_lbls  = pred["labels"].cpu().numpy()
 
-                # Only evaluate mitosis detections (class 1)
                 mit_mask   = pred_lbls == 1
                 pred_boxes = pred_boxes[mit_mask]
                 scores     = scores[mit_mask]
@@ -302,7 +248,6 @@ def compute_map(model: torch.nn.Module,
                 n_gt_total += n_gt
                 matched_gt = set()
 
-                # Sort predictions by descending score
                 sort_idx = np.argsort(-scores)
                 for i in sort_idx:
                     if n_gt == 0:
@@ -323,14 +268,12 @@ def compute_map(model: torch.nn.Module,
     if not all_scores or n_gt_total == 0:
         return 0.0
 
-    # Sort everything by descending score and compute cumulative precision/recall
     order      = np.argsort(-np.array(all_scores))
     cum_tp     = np.cumsum(np.array(all_tp)[order])
     cum_fp     = np.cumsum(np.array(all_fp)[order])
     precision  = cum_tp / (cum_tp + cum_fp + 1e-9)
     recall     = cum_tp / (n_gt_total + 1e-9)
 
-    # Area under the precision-recall curve (11-point interpolation)
     ap = 0.0
     for r_thresh in np.linspace(0, 1, 11):
         mask = recall >= r_thresh
@@ -350,21 +293,9 @@ def _iou_batch(box: np.ndarray, gt_boxes: np.ndarray) -> np.ndarray:
     return inter / (area_pred + area_gt - inter + 1e-9)
 
 
-# ── FROC curve ────────────────────────────────────────────────────────────────
-
 def compute_froc(model: torch.nn.Module,
                  loader: DataLoader,
                  score_thresholds: np.ndarray = None) -> tuple:
-    """
-    Compute the Free-Response ROC (FROC) curve.
-    FROC plots sensitivity (recall) against average false positives per image,
-    which is the standard evaluation metric for detection in pathology AI.
-
-    Returns
-    -------
-    fps_per_image : 1-D array of average FP counts per image
-    sensitivities : 1-D array of corresponding sensitivity (recall) values
-    """
     if score_thresholds is None:
         score_thresholds = np.linspace(0.05, 0.95, 40)
 
@@ -430,17 +361,11 @@ def plot_froc(fps: np.ndarray, sens: np.ndarray, save_path: str) -> None:
     print(f"FROC curve saved → {save_path}")
 
 
-# ── Visualisation ──────────────────────────────────────────────────────────────
-
 def visualise_predictions(model: torch.nn.Module,
                             dataset: MitosisDetectionDataset,
                             n_samples: int = 6,
                             score_thresh: float = 0.4,
                             save_path: str = "outputs/stage2_predictions.png") -> None:
-    """
-    Draw predicted (red) and ground-truth (green) boxes on a grid of patches.
-    Use this for the qualitative analysis section of your report.
-    """
     model.eval()
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
     axes = axes.flatten()
@@ -456,14 +381,12 @@ def visualise_predictions(model: torch.nn.Module,
             img_np = np.clip(img_np, 0, 1)
             ax.imshow(img_np)
 
-            # Ground truth boxes (green)
             for box in target["boxes"].numpy():
                 rect = mpatches.Rectangle(
                     (box[0], box[1]), box[2] - box[0], box[3] - box[1],
                     linewidth=1.5, edgecolor="lime", facecolor="none")
                 ax.add_patch(rect)
 
-            # Predicted boxes (red) above score threshold
             for box, score, lbl in zip(
                     pred["boxes"].cpu().numpy(),
                     pred["scores"].cpu().numpy(),
@@ -478,7 +401,6 @@ def visualise_predictions(model: torch.nn.Module,
 
             ax.axis("off")
 
-    # Legend
     gt_patch   = mpatches.Patch(color="lime", label="Ground truth")
     pred_patch = mpatches.Patch(color="red",  label="Prediction")
     fig.legend(handles=[gt_patch, pred_patch], loc="lower center",
@@ -488,8 +410,6 @@ def visualise_predictions(model: torch.nn.Module,
     plt.savefig(save_path, dpi=150)
     print(f"Prediction visualisation saved → {save_path}")
 
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _plot_detection_curves(history: dict, save_path: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
@@ -501,8 +421,6 @@ def _plot_detection_curves(history: dict, save_path: Path) -> None:
     plt.savefig(save_path, dpi=150)
     plt.close()
 
-
-# ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stage 2 — Faster R-CNN detector")
@@ -518,8 +436,7 @@ if __name__ == "__main__":
     if args.mode == "train":
         train(args)
     else:
-        # Load model and run FROC + visualisation on val set
-        ckpt  = torch.load(args.checkpoint, map_location=DEVICE)
+        ckpt  = torch.load(args.checkpoint, map_location=DEVICE, weights_only=False)
         model = build_detector()
         model.load_state_dict(ckpt["state_dict"])
 

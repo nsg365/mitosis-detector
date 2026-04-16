@@ -8,7 +8,6 @@ It also produces the slide-level mitosis count, which maps directly to the
 Nottingham Grade mitosis score (1/2/3) used in clinical reporting.
 
 Usage
------
   python pipeline.py \
       --wsi_path  data/raw/wsis/slide_001.tif \
       --s1_ckpt   checkpoints/stage1_best.pth \
@@ -16,7 +15,6 @@ Usage
       --out_dir   outputs/
 
 Key hyperparameter to set
---------------------------
 STAGE1_THRESHOLD : Set this to the value printed by stage1_classifier.py --mode eval.
                    Default here is 0.3 (recall-optimised). Adjust after evaluation.
 """
@@ -40,16 +38,11 @@ from stage1_classifier import build_model as build_classifier
 from stage2_detector import build_detector
 
 
-# ── IMPORTANT: set this after running stage1_classifier.py --mode eval ────────
 STAGE1_THRESHOLD = 0.5087   # EfficientNet-B3: P(mitosis) threshold for Stage 2
-# Achieved 100% recall (0% FNR) on validation set
-# ─────────────────────────────────────────────────────────────────────────────
 
 STAGE2_SCORE_THRESH = 0.40  # Faster R-CNN confidence threshold for final detections
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-# ── Transform for Stage 1 inference ───────────────────────────────────────────
 
 S1_TRANSFORM = T.Compose([
     T.ToTensor(),
@@ -57,10 +50,8 @@ S1_TRANSFORM = T.Compose([
 ])
 
 
-# ── Model loaders ──────────────────────────────────────────────────────────────
-
 def load_stage1(ckpt_path: str) -> torch.nn.Module:
-    ckpt  = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt  = torch.load(ckpt_path, map_location=DEVICE, weights_only=False)
     model = build_classifier(ckpt["backbone"])
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
@@ -70,7 +61,7 @@ def load_stage1(ckpt_path: str) -> torch.nn.Module:
 
 
 def load_stage2(ckpt_path: str) -> torch.nn.Module:
-    ckpt  = torch.load(ckpt_path, map_location=DEVICE)
+    ckpt  = torch.load(ckpt_path, map_location=DEVICE, weights_only=False)
     model = build_detector()
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
@@ -96,8 +87,6 @@ def sliding_window_patches(slide: openslide.OpenSlide,
             if patch is not None:
                 yield patch, x0, y0
 
-
-# ── Stage 1: flag suspicious patches ──────────────────────────────────────────
 
 @torch.no_grad()
 def run_stage1(slide: openslide.OpenSlide,
@@ -148,7 +137,7 @@ def run_stage1(slide: openslide.OpenSlide,
     return suspicious
 
 
-# ── Stage 2: detect mitoses in flagged patches ─────────────────────────────────
+#detect mitoses in flagged patches
 
 @torch.no_grad()
 def run_stage2(suspicious_patches: list[tuple[np.ndarray, int, int]],
@@ -214,8 +203,6 @@ def run_stage2(suspicious_patches: list[tuple[np.ndarray, int, int]],
     return detections
 
 
-# ── Slide-level NMS ───────────────────────────────────────────────────────────
-
 def slide_level_nms(detections: list[dict],
                      iou_threshold: float = 0.3) -> list[dict]:
     """
@@ -261,16 +248,11 @@ def nottingham_mitosis_score(n_mitoses: int) -> int:
         return 3
 
 
-# ── Output: annotated thumbnail ────────────────────────────────────────────────
-
 def save_annotated_thumbnail(slide: openslide.OpenSlide,
                               detections: list[dict],
                               save_path: str,
                               thumb_size: tuple = (2000, 2000)) -> None:
-    """
-    Generate an annotated slide thumbnail with all final detections overlaid.
-    Red dots mark detected mitoses. This is the key qualitative figure for your report.
-    """
+    
     thumbnail = slide.get_thumbnail(thumb_size)
     thumb_np  = np.array(thumbnail.convert("RGB"))
 
@@ -296,8 +278,6 @@ def save_annotated_thumbnail(slide: openslide.OpenSlide,
     cv2.imwrite(save_path, thumb_bgr)
     print(f"Annotated thumbnail saved → {save_path}")
 
-
-# ── Main inference function ────────────────────────────────────────────────────
 
 def run_pipeline(wsi_path: str,
                   s1_ckpt:  str,
@@ -357,8 +337,6 @@ def run_pipeline(wsi_path: str,
         "detections":        final_detections,
     }
 
-
-# ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Mitosis detection — full pipeline")

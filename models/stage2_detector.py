@@ -1,18 +1,3 @@
-"""
-Stage 2 Object Detector - Mitosis Localization
-
-This module provides the object detector for the second stage of the 
-mitosis detection pipeline. It localizes and classifies mitotic figures
-within patches identified by Stage 1.
-
-Architecture: Faster R-CNN with ResNet50-FPN backbone
-Input: 512×512 RGB patch
-Output: Bounding boxes + confidence scores
-Anchors: Custom sizes [8, 16, 32, 64, 128]px for small objects
-Loss: Multi-task (classification + regression)
-Optimization: AdamW + Cosine Annealing
-"""
-
 import torch
 import torch.nn as nn
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
@@ -20,14 +5,6 @@ from torchvision.models.detection.rpn import AnchorGenerator
 
 
 class Stage2Detector(nn.Module):
-    """
-    Faster R-CNN based object detector for mitosis localization.
-    
-    Args:
-        num_classes (int): Number of classes (default: 2, background + mitosis)
-        pretrained (bool): Load COCO pretrained weights
-        pretrained_backbone (bool): Load ImageNet pretrained backbone
-    """
     
     def __init__(self, num_classes=2, pretrained=False, pretrained_backbone=True):
         super().__init__()
@@ -51,8 +28,6 @@ class Stage2Detector(nn.Module):
     
     def forward(self, images, targets=None):
         """
-        Forward pass.
-        
         Args:
             images: List of tensors of shape [3, H, W]
             targets: List of dicts with 'boxes' and 'labels' (required during training)
