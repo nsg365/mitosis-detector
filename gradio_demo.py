@@ -110,3 +110,4 @@ if __name__ == "__main__":
     print("  - Any other size!")
     print("\n" + "="*70 + "\n")
     demo.launch(share=False, server_name="0.0.0.0", server_port=7861)
+
