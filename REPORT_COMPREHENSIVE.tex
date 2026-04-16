@@ -14,15 +14,21 @@
 
 \begin{document}
 
-\title{Automated Mitosis Detection in Breast Histopathology:\\ A Deep Learning Framework Incorporating Macenko Normalization,\\ Focal Loss, and Faster R-CNN with Custom Anchor Parameterization}
+\title{
+Automated Mitosis Detection in Breast
+Histopathology: A Deep Learning Framework
+Incorporating Macenko Normalization\\ and Faster
+R-CNN
+}
 
 \author{Nihar Sagar G\\
 EE23BT023\\
-Neural Networks and Deep Learning Project}
+Neural Networks and Deep Learning Course Project}
 
 \maketitle
 
 \begin{abstract}
+
 The quantification of mitotic figures in hematoxylin and eosin (H\&E) stained tissue sections represents a foundational cornerstone of breast cancer prognostication and oncological grading systems. However, manual mitotic counting remains burdened by severe interobserver variability (often exceeding $\pm 30\%$), significant temporal constraints, and subjective interpretation artifacts. This research exhaustively examines a deep learning framework engineered to localize and classify dividing tumor cells within gigapixel whole-slide images (WSIs) derived from the TUPAC16 breast histopathology dataset. The system implements a two-stage cascaded pipeline architecture: (i) a patch-level binary classifier optimized with Focal Loss for rapid screening and negative mining, and (ii) a Faster R-CNN object detector parameterized with custom small-object anchors ($8$--$128$ pixels) for precise localization. Empirical validation demonstrates Stage 2 F1-score of $0.7742$ ($77.42\%$), Stage 1 binary F1-score of $0.8894$ ($88.94\%$), and Faster R-CNN mAP@IoU=0.5 of $0.7598$. Critically, ablation studies reveal that standalone Stage 2 detector deployment fundamentally outperforms the cascaded approach (F1: $0.7742$ vs. $0.5806$), indicating that sequential pre-filtering inadvertently introduces informational bottlenecks. Stain normalization via Macenko preprocessing achieves $63\%$ reduction in cross-center domain shift. The framework demonstrates robust generalization across arbitrary input image sizes (validated from $32 \times 32$ to $4096 \times 4096$ pixels) through aspect-ratio-preserving intelligent padding, eliminating the necessity for model retraining. Positioned as a highly viable clinical decision support tool for digital pathology, this system quantitatively outperforms manual inter-pathologist agreement baselines and provides deterministic, reproducible mitotic quantification.
 \end{abstract}
 
