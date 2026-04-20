@@ -11,6 +11,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{xcolor}
+\usepackage{colortbl}
 \usepackage{tikz}
 \usetikzlibrary{positioning,shapes,arrows,calc}
 
@@ -43,9 +44,7 @@
 % SLIDE 2: Motivation
 \begin{frame}
   \frametitle{Motivation}
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{Clinical Problem}
+            \begin{block}{Clinical Problem}
         \begin{itemize}
           \item Mitosis count is key prognostic indicator
           \item Manual annotation is time-consuming
@@ -54,8 +53,7 @@
         \end{itemize}
       \end{block}
     
-    \column{0.5\textwidth}
-      \begin{block}{Technical Challenge}
+          \begin{block}{Technical Challenge}
         \begin{itemize}
           \item Mitotic figures are small (8--128 pixels)
           \item Class imbalance: many non-mitotic regions
@@ -63,15 +61,13 @@
           \item Requires precise localization
         \end{itemize}
       \end{block}
-  \end{columns}
+  
 \end{frame}
 
 % SLIDE 3: Dataset Overview
 \begin{frame}
   \frametitle{Dataset: TUPAC16}
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{Data Characteristics}
+            \begin{block}{Data Characteristics}
         \begin{itemize}
           \item \textbf{Source:} TUPAC16 Challenge
           \item \textbf{Training:} 8 slides
@@ -81,8 +77,7 @@
         \end{itemize}
       \end{block}
     
-    \column{0.5\textwidth}
-      \begin{block}{Preprocessing}
+          \begin{block}{Preprocessing}
         \begin{itemize}
           \item Macenko color normalization
           \item Stage 1: $64 \times 64$ patches
@@ -91,7 +86,27 @@
           \item 80\% background patches excluded
         \end{itemize}
       \end{block}
-  \end{columns}
+  
+\end{frame}
+
+% SLIDE 3b: Preprocessing Visualized
+\begin{frame}
+  \frametitle{Preprocessing: Macenko Normalization}
+  \begin{figure}
+    \centering
+    \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{outputs/06_stain_normalisation_before_after.png}
+    \caption{\small Standardizing varied H\&E staining protocols.}
+  \end{figure}
+\end{frame}
+
+% SLIDE 3c: Dataset Imbalance
+\begin{frame}
+  \frametitle{Dataset Imbalance}
+  \begin{figure}
+    \centering
+    \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{outputs/01_class_imbalance.png}
+    \caption{\small Severe class imbalance necessitates focal loss.}
+  \end{figure}
 \end{frame}
 
 % SLIDE 4: Architecture Overview
@@ -110,22 +125,16 @@
   \end{tikzpicture}
   
   \vspace{1cm}
-  \begin{columns}[T]
-    \column{0.33\textwidth}
-      \small \textbf{Input:} WSI tiles (40x)
-    \column{0.33\textwidth}
-      \small \textbf{Filter:} Binary classifier on $64 \times 64$
-    \column{0.33\textwidth}
-      \small \textbf{Detect:} R-CNN on $512 \times 512$
-  \end{columns}
+            \small \textbf{Input:} WSI tiles (40x)
+          \small \textbf{Filter:} Binary classifier on $64 \times 64$
+          \small \textbf{Detect:} R-CNN on $512 \times 512$
+  
 \end{frame}
 
 % SLIDE 5: Stage 1 Classifier
 \begin{frame}
   \frametitle{Stage 1: Binary Classifier}
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{Architecture}
+            \begin{block}{Architecture}
         \begin{itemize}
           \item \textbf{Backbone:} EfficientNet-B3
           \item \textbf{Input:} $64 \times 64$ RGB patch
@@ -138,8 +147,7 @@
         with $\gamma = 2$, $\alpha = 0.25$
       \end{block}
     
-    \column{0.5\textwidth}
-      \begin{block}{Performance}
+          \begin{block}{Performance}
         \begin{itemize}
           \item F1 Score: \textbf{0.8894}
           \item Precision: 0.92
@@ -151,15 +159,23 @@
         $\tau = 0.5087$ (recall-optimized)
         \\ Flags $\sim$15\% of patches
       \end{block}
-  \end{columns}
+  
+\end{frame}
+
+% SLIDE 5b: Stage 1 Threshold Analysis
+\begin{frame}
+  \frametitle{Stage 1: Threshold Selection}
+  \begin{figure}
+    \centering
+    \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{outputs/stage1_threshold_analysis.png}
+    \caption{\small Precision-Recall tradeoff. Selected $\tau=0.5087$ to maximize recall for screening.}
+  \end{figure}
 \end{frame}
 
 % SLIDE 6: Stage 2 Detector
 \begin{frame}
   \frametitle{Stage 2: Object Detector}
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{Architecture}
+            \begin{block}{Architecture}
         \begin{itemize}
           \item \textbf{Model:} Faster R-CNN
           \item \textbf{Backbone:} ResNet50-FPN
@@ -175,8 +191,7 @@
         \end{itemize}
       \end{block}
     
-    \column{0.5\textwidth}
-      \begin{block}{Performance}
+          \begin{block}{Performance}
         \begin{itemize}
           \item mAP@0.5: \textbf{0.7598}
           \item F1 Score: \textbf{0.7742}
@@ -191,7 +206,17 @@
           \item NMS IoU: 0.3
         \end{itemize}
       \end{block}
-  \end{columns}
+  
+\end{frame}
+
+% SLIDE 6b: Stage 2 Evaluation
+\begin{frame}
+  \frametitle{Stage 2: FROC Evaluation}
+  \begin{figure}
+    \centering
+    \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{outputs/froc_curve.png}
+    \caption{\small Free-Response ROC curve for the Stage 2 detector.}
+  \end{figure}
 \end{frame}
 
 % SLIDE 7: Single-Center Results
@@ -202,10 +227,8 @@
     \hline
     \textbf{Config} & \textbf{F1} & \textbf{Prec} & \textbf{Status} \\
     \hline
-    \rowcolor{}
     Stage 1 & 0.8894 & 0.92 & Screening \\
     \hline
-    \rowcolor{}
     \textbf{Stage 2} & \textbf{0.7742} & \textbf{0.714} & \textbf{BEST} \\
     \hline
     Pipeline & 0.5806 & 0.68 & Not Rec. \\
@@ -245,12 +268,20 @@
   \end{alertblock}
 \end{frame}
 
+% SLIDE 8b: Detection Results
+\begin{frame}
+  \frametitle{Qualitative Results: Detection Patches}
+  \begin{figure}
+    \centering
+    \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{outputs/05_stage2_detection_patches.png}
+    \caption{\small Example bounding box predictions on validation patches.}
+  \end{figure}
+\end{frame}
+
 % SLIDE 9: Error Analysis
 \begin{frame}
   \frametitle{Error Analysis}
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{False Positives (3 total)}
+            \begin{block}{False Positives (3 total)}
         \begin{itemize}
           \item Overlapping nuclei
           \item Apoptotic bodies
@@ -259,8 +290,7 @@
         \end{itemize}
       \end{block}
     
-    \column{0.5\textwidth}
-      \begin{block}{False Negatives (4 total)}
+          \begin{block}{False Negatives (4 total)}
         \begin{itemize}
           \item Poorly stained figures
           \item Telophase mitosis
@@ -269,9 +299,19 @@
           \item Gallery: outputs/false\_negative\_gallery/
         \end{itemize}
       \end{block}
-  \end{columns}
+  
   
   \vspace{0.5cm}
+\end{frame}
+
+% SLIDE 9b: Model Explainability
+\begin{frame}
+  \frametitle{Model Interpretability}
+  \begin{figure}
+    \centering
+    \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]{outputs/gradcam_misclassifications.png}
+    \caption{\small Grad-CAM showing regions of focus during inference.}
+  \end{figure}
 \end{frame}
 
 % SLIDE 10: Why Direct Detection Wins
@@ -318,42 +358,7 @@
   \end{block}
 \end{frame}
 
-% SLIDE 12: Code Organization
-\begin{frame}
-  \frametitle{Code Organization}
-  \small
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{Model Architecture}
-        \texttt{models/}
-        \begin{itemize}
-          \small
-          \item stage1\_classifier.py
-          \item stage2\_detector.py
-        \end{itemize}
-      \end{block}
-    
-    \column{0.5\textwidth}
-      \begin{block}{Training \& Inference}
-        \texttt{src/}
-        \begin{itemize}
-          \small
-          \item preprocess.py
-          \item pipeline.py (run\_pipeline)
-          \item evaluate.py
-        \end{itemize}
-      \end{block}
-  \end{columns}
-  
-  \begin{block}{Entry Points}
-    \begin{itemize}
-      \small
-      \item Train: \texttt{python src/stage2\_detector.py --mode train}
-      \item Inference: \texttt{python src/pipeline.py --wsi\_path slide.tif}
-      \item Interactive: \texttt{python gradio\_demo.py}
-    \end{itemize}
-  \end{block}
-\end{frame}
+
 
 % SLIDE 13: Interactive Demo - Gradio
 \begin{frame}
@@ -367,9 +372,7 @@
   %     \item Confidence scores per detection
   %   \end{itemize}
   % \end{block}
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{How to Run}
+            \begin{block}{How to Run}
         \texttt{python gradio\_demo.py}
         
         \vspace{0.3cm}
@@ -390,22 +393,22 @@
         \end{itemize}
       \end{block}
     
-    \column{0.5\textwidth}
-      \begin{figure}
-        \centering
-        \includegraphics[width=0.9\linewidth]{image.png}
-        \caption{\small Website Demo Interface}
-      \end{figure}
-  \end{columns}
+\end{frame}
 
+% SLIDE 13b: Demo Interface Picture
+\begin{frame}
+  \frametitle{Demo Interface}
+  \begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{image.png}
+    \caption{\small Website Demo Interface}
+  \end{figure}
 \end{frame}
 
 % SLIDE 14: Limitations and Future Work
 \begin{frame}
   \frametitle{Limitations \& Future Work}
-  \begin{columns}[T]
-    \column{0.5\textwidth}
-      \begin{block}{Current Limitations}
+            \begin{block}{Current Limitations}
         \begin{itemize}
           \item Domain shift: 63\% F1 drop
           \item Single-center training
@@ -413,8 +416,7 @@
         \end{itemize}
       \end{block}
     
-    \column{0.5\textwidth}
-      \begin{block}{Future Directions}
+          \begin{block}{Future Directions}
         \begin{itemize}
           \item Domain adaptation
           \item Stain augmentation
@@ -423,7 +425,7 @@
           \item Explainability (Grad-CAM)
         \end{itemize}
       \end{block}
-  \end{columns}
+  
 \end{frame}
 
 % SLIDE 15: Key Takeaways
